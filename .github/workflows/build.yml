@@ -1,4 +1,4 @@
-name: CI
+name: NeoMind Build
 on:
   push:
     branches: [ main ]
@@ -6,30 +6,27 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04 # Using a stable version of Ubuntu
-
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Get Date
-        id: get-date
-        run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Install Dependencies
         run: |
           sudo apt update
           sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
-          pip3 install --user --upgrade buildozer
+          # The fix: Install specific Cython version and virtualenv
+          pip3 install --user --upgrade "Cython<3.0.0" virtualenv buildozer
 
       - name: Build with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
-          buildozer android debug
+          # Accept licenses and build
+          yes | buildozer android debug
         env:
           ACCEPT_SDK_LICENSE: "yes"
 
-      - name: Upload Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: NeoMind-APK
+          name: NeoMind-Unrestricted-APK
           path: bin/*.apk
