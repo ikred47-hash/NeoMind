@@ -10,7 +10,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Java 17 Setup for modern Android Gradle compatibility
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
