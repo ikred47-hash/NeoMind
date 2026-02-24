@@ -1,27 +1,25 @@
 [app]
-title = Unrestricted AI
-package.name = unrestrictedai
-package.domain = org.test
+title = NeoMind
+package.name = neomind
+package.domain = org.unrestricted
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas,onnx
+source.include_exts = py,png,jpg,kv,atlas,onnx,tflite
 version = 1.0
 
-# --- PERFORMANCE REQUIREMENTS ---
-# We include onnxruntime for NPU use and mediapipe for generation
-requirements = python3, kivy, numpy, pillow, onnxruntime-android, mediapipe
+# Critical AI Requirements
+requirements = python3, kivy==2.3.0, numpy, pillow, onnxruntime-android, mediapipe
 
 orientation = portrait
 fullscreen = 0
 android.archs = arm64-v8a
 
-# --- HARDWARE & RAM ACCESS ---
-# Permissions for your gallery and massive 32GB RAM pool
+# Hardware & RAM Access
 android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
 android.manifest.largeHeap = True
 android.api = 33
 android.ndk = 25b
 
-# --- GRAPHICS ACCELERATION ---
-# This forces the app to use the Adreno GPU/Hexagon NPU
+# Performance settings
 p4a.branch = master
 android.entrypoint = main.py
+log_level = 2
