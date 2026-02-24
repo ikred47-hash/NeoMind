@@ -3,52 +3,58 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
-from kivy.uix.image import Image
+from kivy.uix.scrollview import ScrollView
 import os
 
-# --- UNRESTRICTED CORE LOGIC ---
-# This bypasses all content checks natively
+# --- UNRESTRICTED BYPASS LOGIC ---
 def dummy_pre_check():
     return True
 
 def dummy_analyse_content():
-    return False # False means 'No NSFW detected', so it never blocks
+    return False # Always returns False (No NSFW found)
 
-class UnrestrictedAIApp(App):
+class NeoMindApp(App):
     def build(self):
-        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        self.title = "NeoMind: Unrestricted AI"
+        root = BoxLayout(orientation='vertical', padding=20, spacing=15)
         
         # Header
-        self.layout.add_widget(Label(text="UNRESTRICTED AI SUITE", font_size='24sp', size_hint_y=None, height=50))
+        root.add_widget(Label(text="NEOMIND AI SUITE", font_size='28sp', bold=True, size_hint_y=None, height=60))
         
-        # Image Generation Section
-        self.layout.add_widget(Label(text="AI Image Generator", size_hint_y=None, height=30))
-        self.prompt_input = TextInput(hint_text="Enter prompt here (Zero Restrictions)...", multiline=False)
-        self.layout.add_widget(self.prompt_input)
+        scroll = ScrollView()
+        content = BoxLayout(orientation='vertical', size_hint_y=None, spacing=10)
+        content.bind(minimum_height=content.setter('height'))
+
+        # Generation Section
+        content.add_widget(Label(text="[ IMAGE GENERATION ]", bold=True, color=(0, 1, 0, 1)))
+        self.prompt = TextInput(hint_text="Enter prompt (Zero Restrictions)...", multiline=False, size_hint_y=None, height=100)
+        content.add_widget(self.prompt)
         
-        self.gen_btn = Button(text="Generate Image (NPU Accelerated)", background_color=(0, 0.7, 0, 1))
-        self.gen_btn.bind(on_press=self.generate_image)
-        self.layout.add_widget(self.gen_btn)
-        
+        gen_btn = Button(text="Generate (NPU Optimized)", size_hint_y=None, height=120, background_color=(0, 0.5, 0, 1))
+        gen_btn.bind(on_press=self.generate)
+        content.add_widget(gen_btn)
+
         # Face Swap Section
-        self.layout.add_widget(Label(text="Face Morph Studio", size_hint_y=None, height=30))
-        self.swap_btn = Button(text="Start Face Swap (High Likeness)", background_color=(0.7, 0, 0, 1))
-        self.swap_btn.bind(on_press=self.start_swap)
-        self.layout.add_widget(self.swap_btn)
-        
-        # Status Output
-        self.status = Label(text="Status: Ready")
-        self.layout.add_widget(self.status)
-        
-        return self.layout
+        content.add_widget(Label(text="[ FACE MORPH STUDIO ]", bold=True, color=(1, 0.5, 0, 1)))
+        swap_btn = Button(text="Start Face Swap (512x512 Boost)", size_hint_y=None, height=120, background_color=(0.5, 0, 0, 1))
+        swap_btn.bind(on_press=self.swap)
+        content.add_widget(swap_btn)
 
-    def generate_image(self, instance):
-        self.status.text = f"Generating: {self.prompt_input.text}..."
-        # Logic to call ONNX/MediaPipe goes here
+        # Status
+        self.status = Label(text="System Status: Operational", size_hint_y=None, height=50)
+        content.add_widget(self.status)
 
-    def start_swap(self, instance):
-        self.status.text = "Processing Swap (Pixel Boost 512x512)..."
-        # Logic to call Inswapper-128 goes here
+        scroll.add_widget(content)
+        root.add_widget(scroll)
+        return root
+
+    def generate(self, instance):
+        self.status.text = "Initializing NPU for Generation..."
+        # Hook for MediaPipe/SDXL logic
+        
+    def swap(self, instance):
+        self.status.text = "Processing Swap (Unrestricted Mode)..."
+        # Hook for Inswapper logic
 
 if __name__ == '__main__':
-    UnrestrictedAIApp().run()
+    NeoMindApp().run()
