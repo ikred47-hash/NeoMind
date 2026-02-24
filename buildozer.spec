@@ -6,25 +6,26 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
 
-# Dependencies
-requirements = python3, kivy==2.3.0, numpy, pillow, requests, urllib3, certifi
+# Critical Python Libraries
+requirements = python3, kivy==2.3.0, requests, urllib3, certifi
 
 orientation = portrait
 fullscreen = 0
 android.archs = arm64-v8a
 
-# Hardware & RAM Access
+# Full permissions for the Brain folder
 android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
 android.manifest.largeHeap = True
 
-# THE FIX: Bumping the minimum API to 24 for the NPU library
+# API versions required for NPU Hardware Acceleration
 android.api = 33
 android.minapi = 24
 android.ndk = 25b
 
-# NPU Hardware Acceleration bridge
+# Snapdragon ONNX integration
 android.gradle_dependencies = com.microsoft.onnxruntime:onnxruntime-android:1.22.0
 
+# The Fixes: Forcing the correct Java wrapper
 p4a.branch = master
-android.entrypoint = main.py
+android.bootstrap = sdl2
 log_level = 2
