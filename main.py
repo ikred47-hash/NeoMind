@@ -1,5 +1,7 @@
 import os
+import time
 import threading
+import gc
 import requests
 from kivy.app import App
 from kivy.lang import Builder
@@ -51,16 +53,14 @@ KV = '''
                 spacing: "20dp"
 
                 AssetCard:
-                    asset_name: "Pony Diffusion V6 XL (Unrestricted)"
+                    asset_name: "Pony Diffusion V6 XL (Unrestricted Engine)"
                 AssetCard:
-                    asset_name: "Inswapper 128 (Identity)"
-                AssetCard:
-                    asset_name: "RealVisXL V4.0 (Photo-Real)"
+                    asset_name: "IP-Adapter FaceID (Native Blending)"
                 AssetCard:
                     asset_name: "Mistral-7B (Local Architect)"
 
         Button:
-            text: "GO TO GENERATOR"
+            text: "ENTER NEURAL TERMINAL"
             size_hint_y: None
             height: "60dp"
             background_color: 0.1, 0.1, 0.2, 1
@@ -113,30 +113,117 @@ KV = '''
         Rectangle:
             pos: self.pos
             size: self.size
+            
     BoxLayout:
         orientation: 'vertical'
+        padding: "20dp"
+        spacing: "15dp"
+        
         Label:
-            text: "Unrestricted Generator UI\\n(Pending Implementation)"
-            color: 0, 1, 1, 1
+            text: "NEOMIND: UNRESTRICTED TERMINAL"
+            font_size: '22sp'
             bold: True
-            text_size: self.size
-            halign: 'center'
-            valign: 'middle'
+            color: 0, 1, 1, 1
+            size_hint_y: None
+            height: "40dp"
+            
+        # The space where your generated image will appear
+        Image:
+            id: output_image
+            source: '' 
+            allow_stretch: True
+            keep_ratio: True
+            canvas.before:
+                Color:
+                    rgba: 0.1, 0.1, 0.15, 1
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                    
+        Label:
+            id: gen_status
+            text: "Awaiting Command..."
+            color: 0.5, 0.5, 0.5, 1
+            size_hint_y: None
+            height: "30dp"
+
+        # Text input for your casual commands
+        TextInput:
+            id: prompt_input
+            hint_text: "Describe your scene here..."
+            multiline: True
+            size_hint_y: None
+            height: "100dp"
+            background_color: 0.1, 0.1, 0.2, 1
+            foreground_color: 0, 1, 1, 1
+            cursor_color: 0, 1, 1, 1
+            padding: ["10dp", "10dp"]
+
+        Button:
+            id: gen_btn
+            text: "ENGAGE NPU"
+            size_hint_y: None
+            height: "60dp"
+            background_color: 0.8, 0.1, 0.1, 1
+            color: 1, 1, 1, 1
+            bold: True
+            on_release: root.start_generation()
+
         Button:
             text: "BACK TO BRAIN MANAGEMENT"
             size_hint_y: None
-            height: "60dp"
-            background_color: 0.1, 0.1, 0.2, 1
+            height: "50dp"
+            background_color: 0.2, 0.2, 0.3, 1
             on_release: root.manager.current = 'brain_mgmt'
 '''
 
 # ==========================================
-# 2. BACKEND LOGIC (Downloads & Storage)
+# 2. THE UNRESTRICTED ENGINE (RAM MANAGER)
+# ==========================================
+class UnrestrictedEngine:
+    def __init__(self, status_callback):
+        self.update_status = status_callback
+        self.llm_session = None
+        self.image_session = None
+
+    def process_request(self, raw_text, completion_callback):
+        # Phase 1: LLM Translation
+        self.update_status("Allocating RAM: Waking Mistral-7B...")
+        self.llm_session = "Mock_LLM_Loaded"
+        time.sleep(1)
+        
+        self.update_status("Architecting Master Prompt...")
+        time.sleep(1.5)
+        master_prompt = f"(masterpiece, 8k, highly detailed), {raw_text}, volumetric lighting"
+        
+        # Phase 2: RAM Flush (Protecting your 16GB limit)
+        self.update_status("Command Processed. Flushing LLM from RAM...")
+        self.llm_session = None
+        gc.collect()
+        time.sleep(0.5)
+
+        # Phase 3: Image Generation via NPU
+        self.update_status("Allocating RAM: Engaging Snapdragon NPU...")
+        self.image_session = "Mock_SDXL_Loaded"
+        time.sleep(1)
+        
+        self.update_status(f"Generating: {master_prompt[:30]}...")
+        time.sleep(3) # Simulating heavy NPU workload
+        
+        # Phase 4: Final RAM Flush
+        self.update_status("Image Complete. Flushing Generator from RAM...")
+        self.image_session = None
+        gc.collect()
+        
+        # Signal the UI that we are done
+        Clock.schedule_once(lambda dt: completion_callback())
+
+# ==========================================
+# 3. BACKEND LOGIC (Downloads & Storage)
 # ==========================================
 class BrainManagerLogic:
     def __init__(self, status_label):
         self.status_label = status_label
-        # FIX: Moved to the public Download folder to bypass Android Scoped Storage restrictions
         self.brain_path = "/sdcard/Download/NeoMind_Models/"
         try:
             if not os.path.exists(self.brain_path):
@@ -175,7 +262,7 @@ class BrainManagerLogic:
             self.status_label.text = text
 
 # ==========================================
-# 3. UI COMPONENTS (Card Logic)
+# 4. UI COMPONENTS (Card Logic)
 # ==========================================
 class AssetCard(BoxLayout):
     asset_name = StringProperty()
@@ -208,18 +295,41 @@ class AssetCard(BoxLayout):
                 app.brain_logic._update_status("Sideload only works on Android Device")
 
 # ==========================================
-# 4. APP & SCREEN ROUTING
+# 5. APP & SCREEN ROUTING
 # ==========================================
 class BrainScreen(Screen):
     pass
 
 class GeneratorScreen(Screen):
-    pass
+    def start_generation(self):
+        prompt_text = self.ids.prompt_input.text
+        if not prompt_text.strip():
+            self.ids.gen_status.text = "Error: Please describe a scene first."
+            self.ids.gen_status.color = (1, 0, 0, 1)
+            return
+
+        self.ids.gen_btn.disabled = True
+        self.ids.gen_btn.text = "PROCESSING..."
+        
+        # Pass the request to our Engine in a background thread
+        app = App.get_running_app()
+        threading.Thread(
+            target=app.ai_engine.process_request, 
+            args=(prompt_text, self._on_generation_complete), 
+            daemon=True
+        ).start()
+
+    def _on_generation_complete(self):
+        self.ids.gen_status.text = "Generation Complete."
+        self.ids.gen_status.color = (0, 1, 0, 1)
+        self.ids.gen_btn.disabled = False
+        self.ids.gen_btn.text = "ENGAGE NPU"
 
 class NeoMindApp(App):
     def build(self):
         self.title = "NeoMind Unrestricted Suite"
         self.brain_logic = None 
+        self.ai_engine = None
         
         Builder.load_string(KV)
         
@@ -231,7 +341,6 @@ class NeoMindApp(App):
         return sm
 
     def on_start(self):
-        # FIX: Triggers the native Android permission pop-up on launch
         if platform == 'android':
             from android.permissions import request_permissions, Permission
             request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
@@ -239,7 +348,18 @@ class NeoMindApp(App):
     def _init_logic(self, dt):
         screen = self.root.get_screen('brain_mgmt')
         status_lbl = screen.ids.status_label
+        
         self.brain_logic = BrainManagerLogic(status_lbl)
+        
+        # Link the Generator UI's status label to the AI Engine
+        gen_screen = self.root.get_screen('generator')
+        gen_status_lbl = gen_screen.ids.gen_status
+        
+        def update_gen_ui(text):
+            # Safely update the UI from the background thread
+            Clock.schedule_once(lambda dt: setattr(gen_status_lbl, 'text', text))
+            
+        self.ai_engine = UnrestrictedEngine(update_gen_ui)
 
 if __name__ == '__main__':
     NeoMindApp().run()
