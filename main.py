@@ -10,6 +10,10 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import StringProperty, NumericProperty
 from kivy.clock import Clock
 from kivy.utils import platform
+from kivy.core.window import Window
+
+# Magic Bullet for Android Keyboards
+Window.softinput_mode = 'below_target' 
 
 # ==========================================
 # 1. UI STYLING (Embedded KV String)
@@ -18,7 +22,7 @@ KV = '''
 <BrainScreen>:
     canvas.before:
         Color:
-            rgba: 0.05, 0.05, 0.1, 1 
+            rgba: 0.05, 0.05, 0.08, 1 
         Rectangle:
             pos: self.pos
             size: self.size
@@ -30,16 +34,19 @@ KV = '''
 
         Label:
             text: "NEOMIND: BRAIN MANAGEMENT"
-            font_size: '24sp'
+            font_size: '22sp'
             bold: True
             color: 0, 1, 1, 1 
             size_hint_y: None
             height: "60dp"
+            halign: 'center'
+            valign: 'middle'
 
         Label:
             id: status_label
-            text: "System Idle: Dedicated 300GB Ready"
-            color: 0.5, 0.5, 0.5, 1
+            text: "System Idle: Dedicated Storage Ready"
+            color: 0.6, 0.6, 0.6, 1
+            font_size: '14sp'
             size_hint_y: None
             height: "30dp"
 
@@ -51,31 +58,35 @@ KV = '''
                 size_hint_y: None
                 height: self.minimum_height
                 spacing: "20dp"
+                padding: [0, 10, 0, 10]
 
                 AssetCard:
-                    asset_name: "Pony Diffusion V6 XL (Unrestricted Engine)"
+                    asset_name: "Pony Diffusion V6 XL (Generator)"
                 AssetCard:
-                    asset_name: "IP-Adapter FaceID (Native Blending)"
+                    asset_name: "IP-Adapter FaceID (Blender)"
                 AssetCard:
                     asset_name: "Mistral-7B (Local Architect)"
 
         Button:
             text: "ENTER NEURAL TERMINAL"
             size_hint_y: None
-            height: "60dp"
-            background_color: 0.1, 0.1, 0.2, 1
+            height: "65dp"
+            background_normal: ''
+            background_color: 0, 0.5, 0.5, 0.3
             color: 0, 1, 1, 1
             bold: True
+            font_size: '16sp'
             on_release: root.manager.current = 'generator'
 
 <AssetCard>:
     orientation: 'vertical'
     size_hint_y: None
     height: "140dp"
-    padding: "10dp"
+    padding: "15dp"
+    spacing: "5dp"
     canvas.before:
         Color:
-            rgba: 0, 1, 1, 0.2
+            rgba: 0, 1, 1, 0.15 
         Line:
             width: 1.2
             rectangle: (self.x, self.y, self.width, self.height)
@@ -83,98 +94,135 @@ KV = '''
     Label:
         text: root.asset_name
         halign: 'left'
+        valign: 'middle'
         text_size: self.size
         bold: True
-        color: 1, 1, 1, 1
+        color: 0.9, 0.9, 0.9, 1
 
     ProgressBar:
         max: 100
         value: root.progress
         size_hint_y: None
-        height: "15dp"
+        height: "10dp"
 
     BoxLayout:
-        spacing: "10dp"
+        spacing: "15dp"
         size_hint_y: None
-        height: "50dp"
+        height: "45dp"
         Button:
             text: "DOWNLOAD"
-            background_color: 0.2, 0.6, 1, 1
+            background_normal: ''
+            background_color: 0.1, 0.4, 0.8, 1
+            bold: True
             on_release: self.parent.parent.trigger_download()
         Button:
             text: "SIDELOAD"
-            background_color: 0.2, 0.2, 0.3, 1
+            background_normal: ''
+            background_color: 0.2, 0.2, 0.25, 1
+            bold: True
             on_release: self.parent.parent.trigger_sideload()
 
 <GeneratorScreen>:
     canvas.before:
         Color:
-            rgba: 0.05, 0.05, 0.1, 1
+            rgba: 0.05, 0.05, 0.08, 1
         Rectangle:
             pos: self.pos
             size: self.size
             
-    BoxLayout:
-        orientation: 'vertical'
-        padding: "20dp"
-        spacing: "15dp"
-        
-        Label:
-            text: "NEOMIND: UNRESTRICTED TERMINAL"
-            font_size: '22sp'
-            bold: True
-            color: 0, 1, 1, 1
+    ScrollView:
+        do_scroll_x: False
+        BoxLayout:
+            orientation: 'vertical'
+            padding: "20dp"
+            spacing: "15dp"
             size_hint_y: None
-            height: "40dp"
+            height: self.minimum_height 
             
-        # The space where your generated image will appear
-        Image:
-            id: output_image
-            source: '' 
-            allow_stretch: True
-            keep_ratio: True
-            canvas.before:
-                Color:
-                    rgba: 0.1, 0.1, 0.15, 1
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
-                    
-        Label:
-            id: gen_status
-            text: "Awaiting Command..."
-            color: 0.5, 0.5, 0.5, 1
-            size_hint_y: None
-            height: "30dp"
+            Label:
+                text: "UNRESTRICTED TERMINAL"
+                font_size: '22sp'
+                bold: True
+                color: 0, 1, 1, 1
+                size_hint_y: None
+                height: "50dp"
+                
+            # Image Container
+            BoxLayout:
+                size_hint_y: None
+                height: "350dp"
+                padding: "2dp"
+                canvas.before:
+                    Color:
+                        rgba: 0.2, 0.2, 0.25, 1 
+                    Line:
+                        width: 1
+                        rectangle: (self.x, self.y, self.width, self.height)
+                    Color:
+                        rgba: 0.08, 0.08, 0.1, 1 
+                    Rectangle:
+                        pos: self.x+2, self.y+2
+                        size: self.width-4, self.height-4
+                Image:
+                    id: output_image
+                    source: '' 
+                    allow_stretch: True
+                    keep_ratio: True
+            
+            # Dynamic Action Button (Hidden until image generates)
+            Button:
+                id: save_btn
+                text: "SAVE TO DEVICE GALLERY"
+                size_hint_y: None
+                height: "50dp"
+                background_normal: ''
+                background_color: 0, 0.7, 0.3, 1
+                color: 1, 1, 1, 1
+                bold: True
+                opacity: 0
+                disabled: True
+                on_release: root.save_image()
 
-        # Text input for your casual commands
-        TextInput:
-            id: prompt_input
-            hint_text: "Describe your scene here..."
-            multiline: True
-            size_hint_y: None
-            height: "100dp"
-            background_color: 0.1, 0.1, 0.2, 1
-            foreground_color: 0, 1, 1, 1
-            cursor_color: 0, 1, 1, 1
-            padding: ["10dp", "10dp"]
+            Label:
+                id: gen_status
+                text: "Awaiting Command..."
+                color: 0.6, 0.6, 0.6, 1
+                size_hint_y: None
+                height: "30dp"
+                bold: True
 
-        Button:
-            id: gen_btn
-            text: "ENGAGE NPU"
-            size_hint_y: None
-            height: "60dp"
-            background_color: 0.8, 0.1, 0.1, 1
-            color: 1, 1, 1, 1
-            bold: True
-            on_release: root.start_generation()
+            TextInput:
+                id: prompt_input
+                hint_text: "Describe your scene here (Unrestricted)..."
+                multiline: True
+                size_hint_y: None
+                height: "140dp" # Expanded height since sliders are gone
+                background_color: 0.15, 0.15, 0.2, 1
+                foreground_color: 0, 1, 1, 1
+                cursor_color: 0, 1, 1, 1
+                padding: ["12dp", "12dp"]
+                font_size: '15sp'
 
-        Button:
-            text: "BACK TO BRAIN MANAGEMENT"
-            size_hint_y: None
-            height: "50dp"
-            background_color: 0.2, 0.2, 0.3, 1
-            on_release: root.manager.current = 'brain_mgmt'
+            Button:
+                id: gen_btn
+                text: "ENGAGE NPU PIPELINE"
+                size_hint_y: None
+                height: "65dp"
+                background_normal: ''
+                background_color: 0.8, 0.1, 0.1, 1
+                color: 1, 1, 1, 1
+                bold: True
+                font_size: '18sp'
+                on_release: root.start_generation()
+
+            Button:
+                text: "BACK TO BRAIN MANAGEMENT"
+                size_hint_y: None
+                height: "50dp"
+                background_normal: ''
+                background_color: 0.2, 0.2, 0.25, 1
+                bold: True
+                on_release: root.manager.current = 'brain_mgmt'
 '''
 
 # ==========================================
@@ -187,35 +235,36 @@ class UnrestrictedEngine:
         self.image_session = None
 
     def process_request(self, raw_text, completion_callback):
-        # Phase 1: LLM Translation
         self.update_status("Allocating RAM: Waking Mistral-7B...")
         self.llm_session = "Mock_LLM_Loaded"
         time.sleep(1)
         
-        self.update_status("Architecting Master Prompt...")
+        self.update_status("LLM Architecting Prompt & Parameters...")
         time.sleep(1.5)
-        master_prompt = f"(masterpiece, 8k, highly detailed), {raw_text}, volumetric lighting"
         
-        # Phase 2: RAM Flush (Protecting your 16GB limit)
-        self.update_status("Command Processed. Flushing LLM from RAM...")
+        # MOCK LLM INTELLIGENCE: The LLM decides the sliders invisibly
+        # If it senses a chaotic or gory scene, it cranks the strictness (CFG)
+        dynamic_cfg = 8.5 if "dying" in raw_text.lower() or "gore" in raw_text.lower() else 6.0
+        dynamic_blend = 95 if "face" in raw_text.lower() else 75
+        
+        master_prompt = f"(masterpiece, 8k), {raw_text}, highly detailed"
+        
+        self.update_status("LLM Analysis Complete. Flushing LLM from RAM...")
         self.llm_session = None
         gc.collect()
         time.sleep(0.5)
 
-        # Phase 3: Image Generation via NPU
-        self.update_status("Allocating RAM: Engaging Snapdragon NPU...")
+        self.update_status(f"NPU Waking... [Auto-CFG: {dynamic_cfg} | Auto-Blend: {dynamic_blend}%]")
         self.image_session = "Mock_SDXL_Loaded"
         time.sleep(1)
         
-        self.update_status(f"Generating: {master_prompt[:30]}...")
-        time.sleep(3) # Simulating heavy NPU workload
+        self.update_status(f"Generating Image. Please wait...")
+        time.sleep(3) 
         
-        # Phase 4: Final RAM Flush
         self.update_status("Image Complete. Flushing Generator from RAM...")
         self.image_session = None
         gc.collect()
         
-        # Signal the UI that we are done
         Clock.schedule_once(lambda dt: completion_callback())
 
 # ==========================================
@@ -305,16 +354,21 @@ class GeneratorScreen(Screen):
         prompt_text = self.ids.prompt_input.text
         if not prompt_text.strip():
             self.ids.gen_status.text = "Error: Please describe a scene first."
-            self.ids.gen_status.color = (1, 0, 0, 1)
+            self.ids.gen_status.color = (1, 0.3, 0.3, 1)
             return
 
+        # Lock the UI during generation
         self.ids.gen_btn.disabled = True
-        self.ids.gen_btn.text = "PROCESSING..."
+        self.ids.gen_btn.text = "PROCESSING (NPU ENGAGED)..."
+        self.ids.gen_btn.background_color = (0.5, 0.1, 0.1, 1)
         
-        # Pass the request to our Engine in a background thread
+        self.ids.save_btn.opacity = 0
+        self.ids.save_btn.disabled = True
+        
         app = App.get_running_app()
         threading.Thread(
             target=app.ai_engine.process_request, 
+            # Sliders are gone, we just pass the raw text to the engine
             args=(prompt_text, self._on_generation_complete), 
             daemon=True
         ).start()
@@ -322,8 +376,17 @@ class GeneratorScreen(Screen):
     def _on_generation_complete(self):
         self.ids.gen_status.text = "Generation Complete."
         self.ids.gen_status.color = (0, 1, 0, 1)
+        
         self.ids.gen_btn.disabled = False
-        self.ids.gen_btn.text = "ENGAGE NPU"
+        self.ids.gen_btn.text = "ENGAGE NPU PIPELINE"
+        self.ids.gen_btn.background_color = (0.8, 0.1, 0.1, 1)
+        
+        self.ids.save_btn.opacity = 1
+        self.ids.save_btn.disabled = False
+
+    def save_image(self):
+        self.ids.gen_status.text = "Image Saved to Device Gallery."
+        self.ids.gen_status.color = (0, 1, 1, 1)
 
 class NeoMindApp(App):
     def build(self):
@@ -351,12 +414,10 @@ class NeoMindApp(App):
         
         self.brain_logic = BrainManagerLogic(status_lbl)
         
-        # Link the Generator UI's status label to the AI Engine
         gen_screen = self.root.get_screen('generator')
         gen_status_lbl = gen_screen.ids.gen_status
         
         def update_gen_ui(text):
-            # Safely update the UI from the background thread
             Clock.schedule_once(lambda dt: setattr(gen_status_lbl, 'text', text))
             
         self.ai_engine = UnrestrictedEngine(update_gen_ui)
