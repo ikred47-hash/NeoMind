@@ -7,10 +7,13 @@ from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.boxlayout import BoxLayout
-from kivy.properties import StringProperty, NumericProperty
+from kivy.properties import StringProperty, NumericProperty, BooleanProperty
 from kivy.clock import Clock
 from kivy.utils import platform
 from kivy.core.window import Window
+from kivy.uix.modalview import ModalView
+from kivy.uix.image import Image as KivyImage
+from kivy.animation import Animation
 
 # Magic Bullet for Android Keyboards
 Window.softinput_mode = 'below_target' 
@@ -62,7 +65,6 @@ KV = '''
                 spacing: "20dp"
                 padding: [0, 10, 0, 10]
 
-                # The Absolute Peak Asset Roster
                 AssetCard:
                     asset_name: "Llama 3.1 8B (Prompt Architect)"
                 AssetCard:
@@ -130,162 +132,346 @@ KV = '''
             on_release: self.parent.parent.trigger_sideload()
 
 <GeneratorScreen>:
-    canvas.before:
-        Color:
-            rgba: 0.05, 0.05, 0.08, 1
-        Rectangle:
-            pos: self.pos
-            size: self.size
-            
-    ScrollView:
-        do_scroll_x: False
+    FloatLayout:
+        # --- MAIN UI LAYER ---
+        canvas.before:
+            Color:
+                rgba: 0.05, 0.05, 0.08, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+                
+        ScrollView:
+            do_scroll_x: False
+            BoxLayout:
+                orientation: 'vertical'
+                padding: "20dp"
+                spacing: "15dp"
+                size_hint_y: None
+                height: self.minimum_height 
+                
+                # Header Row with Advanced Gear Button
+                BoxLayout:
+                    size_hint_y: None
+                    height: "50dp"
+                    spacing: "10dp"
+                    
+                    BoxLayout:
+                        spacing: "2dp"
+                        ToggleButton:
+                            text: "GENERATE"
+                            group: "mode"
+                            state: "down"
+                            background_normal: ''
+                            background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.1, 0.1, 0.15, 1)
+                            bold: True
+                            on_release: root.switch_mode('generate')
+                        ToggleButton:
+                            text: "SWAP"
+                            group: "mode"
+                            background_normal: ''
+                            background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.1, 0.1, 0.15, 1)
+                            bold: True
+                            on_release: root.switch_mode('swap')
+                        ToggleButton:
+                            text: "EDIT"
+                            group: "mode"
+                            background_normal: ''
+                            background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.1, 0.1, 0.15, 1)
+                            bold: True
+                            on_release: root.switch_mode('edit')
+
+                    Button:
+                        text: "⚙️"
+                        size_hint_x: None
+                        width: "50dp"
+                        background_normal: ''
+                        background_color: 0.2, 0.2, 0.25, 1
+                        on_release: root.toggle_advanced_panel()
+
+                # Image Display Area
+                FloatLayout:
+                    size_hint_y: None
+                    height: "350dp"
+                    canvas.before:
+                        Color:
+                            rgba: 0.2, 0.2, 0.25, 1 
+                        Line:
+                            width: 1
+                            rectangle: (self.x, self.y, self.width, self.height)
+                        Color:
+                            rgba: 0.08, 0.08, 0.1, 1 
+                        Rectangle:
+                            pos: self.x+2, self.y+2
+                            size: self.width-4, self.height-4
+                    
+                    Image:
+                        id: output_image
+                        source: '' 
+                        allow_stretch: True
+                        keep_ratio: True
+                        pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+
+                    BoxLayout:
+                        id: output_overlays
+                        opacity: 0
+                        disabled: True
+                        size_hint: None, None
+                        size: "120dp", "40dp"
+                        pos_hint: {'right': 0.98, 'top': 0.98}
+                        spacing: "5dp"
+                        
+                        Button:
+                            text: "⛶"
+                            background_normal: ''
+                            background_color: 0, 0, 0, 0.7
+                            on_release: root.fullscreen_image(output_image.source)
+                        Button:
+                            text: "💾"
+                            background_normal: ''
+                            background_color: 0, 0, 0, 0.7
+                            on_release: root.save_image()
+                        Button:
+                            text: "❌"
+                            background_normal: ''
+                            background_color: 0.8, 0.1, 0.1, 0.7
+                            on_release: root.clear_output()
+
+                Label:
+                    id: gen_status
+                    text: "Awaiting Command..."
+                    color: 0.6, 0.6, 0.6, 1
+                    size_hint_y: None
+                    height: "30dp"
+                    bold: True
+
+                ProgressBar:
+                    id: gen_progress
+                    max: 100
+                    value: 0
+                    size_hint_y: None
+                    height: "15dp"
+                    opacity: 0 
+
+                BoxLayout:
+                    id: upload_panel
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: "0dp" 
+                    opacity: 0
+                    spacing: "10dp"
+                    
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: "50dp"
+                        spacing: "10dp"
+                        Button:
+                            id: btn_upload_1
+                            text: "Upload Source Face"
+                            background_normal: ''
+                            background_color: 0.2, 0.2, 0.3, 1
+                            on_release: root.open_gallery('source')
+                        Button:
+                            id: btn_upload_2
+                            text: "Upload Target Body"
+                            background_normal: ''
+                            background_color: 0.2, 0.2, 0.3, 1
+                            on_release: root.open_gallery('target')
+
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: "100dp"
+                        spacing: "10dp"
+                        FloatLayout:
+                            id: source_thumb_container
+                            opacity: 0
+                            Image:
+                                id: source_thumb
+                                source: ''
+                                allow_stretch: True
+                                keep_ratio: True
+                            Button:
+                                text: "❌"
+                                size_hint: None, None
+                                size: "30dp", "30dp"
+                                pos_hint: {'right': 1, 'top': 1}
+                                background_normal: ''
+                                background_color: 0.8, 0.1, 0.1, 0.8
+                                on_release: root.clear_thumbnail('source')
+                        FloatLayout:
+                            id: target_thumb_container
+                            opacity: 0
+                            Image:
+                                id: target_thumb
+                                source: ''
+                                allow_stretch: True
+                                keep_ratio: True
+                            Button:
+                                text: "❌"
+                                size_hint: None, None
+                                size: "30dp", "30dp"
+                                pos_hint: {'right': 1, 'top': 1}
+                                background_normal: ''
+                                background_color: 0.8, 0.1, 0.1, 0.8
+                                on_release: root.clear_thumbnail('target')
+
+                TextInput:
+                    id: prompt_input
+                    hint_text: "Describe your scene here (Master Positive)..."
+                    multiline: True
+                    size_hint_y: None
+                    height: "120dp" 
+                    background_color: 0.15, 0.15, 0.2, 1
+                    foreground_color: 0, 1, 1, 1
+                    cursor_color: 0, 1, 1, 1
+                    padding: ["12dp", "12dp"]
+                    font_size: '15sp'
+
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: "65dp"
+                    spacing: "10dp"
+                    
+                    Button:
+                        id: gen_btn
+                        text: "ENGAGE NPU PIPELINE"
+                        size_hint_x: 0.7
+                        background_normal: ''
+                        background_color: 0.8, 0.1, 0.1, 1
+                        color: 1, 1, 1, 1
+                        bold: True
+                        font_size: '18sp'
+                        on_release: root.toggle_generation()
+                        
+                    Button:
+                        text: "CLEAR"
+                        size_hint_x: 0.3
+                        background_normal: ''
+                        background_color: 0.4, 0.4, 0.4, 1
+                        bold: True
+                        on_release: root.clear_all()
+
+                Button:
+                    text: "ACCESS NEURAL VAULT"
+                    size_hint_y: None
+                    height: "50dp"
+                    background_normal: ''
+                    background_color: 0.2, 0.2, 0.25, 1
+                    bold: True
+                    on_release: root.manager.current = 'brain_mgmt'
+
+        # --- SLIDE-OUT ADVANCED PANEL (Hides off-screen right) ---
         BoxLayout:
+            id: advanced_panel
             orientation: 'vertical'
+            size_hint: (0.75, 1)
+            pos_hint: {'x': 1, 'y': 0} # Starts completely off-screen
             padding: "20dp"
             spacing: "15dp"
-            size_hint_y: None
-            height: self.minimum_height 
-            
-            # --- THE DYNAMIC MODE SELECTOR ---
-            BoxLayout:
-                size_hint_y: None
-                height: "50dp"
-                spacing: "5dp"
-                
-                ToggleButton:
-                    text: "GENERATE"
-                    group: "mode"
-                    state: "down"
-                    background_normal: ''
-                    background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.1, 0.1, 0.15, 1)
-                    bold: True
-                    on_release: root.switch_mode('generate')
-                    
-                ToggleButton:
-                    text: "FACE SWAP"
-                    group: "mode"
-                    background_normal: ''
-                    background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.1, 0.1, 0.15, 1)
-                    bold: True
-                    on_release: root.switch_mode('swap')
-                    
-                ToggleButton:
-                    text: "AI EDIT"
-                    group: "mode"
-                    background_normal: ''
-                    background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.1, 0.1, 0.15, 1)
-                    bold: True
-                    on_release: root.switch_mode('edit')
-
-            # Image Display Area
-            BoxLayout:
-                size_hint_y: None
-                height: "350dp"
-                padding: "2dp"
-                canvas.before:
-                    Color:
-                        rgba: 0.2, 0.2, 0.25, 1 
-                    Line:
-                        width: 1
-                        rectangle: (self.x, self.y, self.width, self.height)
-                    Color:
-                        rgba: 0.08, 0.08, 0.1, 1 
-                    Rectangle:
-                        pos: self.x+2, self.y+2
-                        size: self.width-4, self.height-4
-                Image:
-                    id: output_image
-                    source: '' 
-                    allow_stretch: True
-                    keep_ratio: True
-            
-            Button:
-                id: save_btn
-                text: "SAVE TO DEVICE GALLERY"
-                size_hint_y: None
-                height: "50dp"
-                background_normal: ''
-                background_color: 0, 0.7, 0.3, 1
-                color: 1, 1, 1, 1
-                bold: True
-                opacity: 0
-                disabled: True
-                on_release: root.save_image()
+            canvas.before:
+                Color:
+                    rgba: 0.1, 0.1, 0.15, 0.98 # Dark, solid overlay
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+                Color:
+                    rgba: 0, 1, 1, 0.3 # Neon border line
+                Line:
+                    points: [self.x, self.y, self.x, self.top]
+                    width: 1.5
 
             Label:
-                id: gen_status
-                text: "Awaiting Command..."
-                color: 0.6, 0.6, 0.6, 1
-                size_hint_y: None
-                height: "30dp"
+                text: "ADVANCED NPU CONTROLS"
+                font_size: '18sp'
                 bold: True
-
-            ProgressBar:
-                id: gen_progress
-                max: 100
-                value: 0
+                color: 0, 1, 1, 1
                 size_hint_y: None
-                height: "15dp"
-                opacity: 0 
+                height: "40dp"
 
-            # --- DYNAMIC INPUT PANELS ---
-            
-            # Panel for Face Swap & Edit Image Selection
+            Label:
+                text: "Aspect Ratio"
+                color: 0.7, 0.7, 0.7, 1
+                size_hint_y: None
+                height: "20dp"
+                text_size: self.size
+                halign: 'left'
+
             BoxLayout:
-                id: upload_panel
-                orientation: 'horizontal'
                 size_hint_y: None
-                height: "0dp" 
-                opacity: 0
-                spacing: "10dp"
-                
-                Button:
-                    id: btn_upload_1
-                    text: "Upload Source"
+                height: "40dp"
+                spacing: "5dp"
+                ToggleButton:
+                    text: "Portrait"
+                    group: "ratio"
                     background_normal: ''
-                    background_color: 0.2, 0.2, 0.3, 1
-                    on_release: root.open_gallery('source')
-                    
-                Button:
-                    id: btn_upload_2
-                    text: "Upload Target"
+                    background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.2, 0.2, 0.25, 1)
+                ToggleButton:
+                    text: "Square"
+                    group: "ratio"
+                    state: "down"
                     background_normal: ''
-                    background_color: 0.2, 0.2, 0.3, 1
-                    on_release: root.open_gallery('target')
+                    background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.2, 0.2, 0.25, 1)
+                ToggleButton:
+                    text: "Landscape"
+                    group: "ratio"
+                    background_normal: ''
+                    background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.2, 0.2, 0.25, 1)
 
-            # Text Input Panel
+            Label:
+                text: "Exclude (Negative Prompt)"
+                color: 0.7, 0.7, 0.7, 1
+                size_hint_y: None
+                height: "20dp"
+                text_size: self.size
+                halign: 'left'
+
             TextInput:
-                id: prompt_input
-                hint_text: "Describe your scene here..."
+                id: negative_input
+                hint_text: "e.g., helmet, watermark..."
                 multiline: True
                 size_hint_y: None
-                height: "120dp" 
-                background_color: 0.15, 0.15, 0.2, 1
+                height: "80dp"
+                background_color: 0.2, 0.2, 0.25, 1
                 foreground_color: 0, 1, 1, 1
-                cursor_color: 0, 1, 1, 1
-                padding: ["12dp", "12dp"]
-                font_size: '15sp'
 
-            Button:
-                id: gen_btn
-                text: "ENGAGE NPU PIPELINE"
+            BoxLayout:
                 size_hint_y: None
-                height: "65dp"
-                background_normal: ''
-                background_color: 0.8, 0.1, 0.1, 1
-                color: 1, 1, 1, 1
-                bold: True
-                font_size: '18sp'
-                on_release: root.start_generation()
+                height: "40dp"
+                Label:
+                    text: "Lock Generation Seed"
+                    text_size: self.size
+                    valign: 'middle'
+                CheckBox:
+                    id: check_seed
+                    size_hint_x: None
+                    width: "40dp"
+
+            BoxLayout:
+                size_hint_y: None
+                height: "40dp"
+                Label:
+                    text: "4K CodeFormer HD"
+                    text_size: self.size
+                    valign: 'middle'
+                CheckBox:
+                    id: check_hd
+                    size_hint_x: None
+                    width: "40dp"
+
+            # Spacer to push everything to the top
+            Widget: 
 
             Button:
-                text: "ACCESS NEURAL VAULT"
+                text: "CLOSE PANEL"
                 size_hint_y: None
                 height: "50dp"
                 background_normal: ''
                 background_color: 0.2, 0.2, 0.25, 1
                 bold: True
-                on_release: root.manager.current = 'brain_mgmt'
+                on_release: root.toggle_advanced_panel()
 '''
 
 # ==========================================
@@ -294,38 +480,49 @@ KV = '''
 class UnrestrictedEngine:
     def __init__(self, status_callback):
         self.update_status = status_callback
-        self.llm_session = None
-        self.image_session = None
+        self.abort_flag = False
 
-    def process_request(self, current_mode, raw_text, source_img, target_img, completion_callback):
-        self.update_status(f"Pipeline Initiated: {current_mode.upper()} MODE", 5)
-        time.sleep(1)
+    def process_request(self, current_mode, raw_text, neg_text, source_img, target_img, completion_callback):
+        self.abort_flag = False # Reset abort flag
+        
+        try:
+            self.update_status(f"Pipeline: {current_mode.upper()} MODE", 5)
+            time.sleep(1)
+            if self.abort_flag: raise Exception("User Aborted.")
 
-        self.update_status("Allocating RAM: Waking Llama 3.1 8B...", 15)
-        self.llm_session = "Mock_LLM_Loaded"
-        time.sleep(1)
-        
-        self.update_status("LLM Architecting NPU Instructions...", 25)
-        time.sleep(1.5)
-        
-        self.update_status("Analysis Complete. Flushing LLM from RAM...", 35)
-        self.llm_session = None
-        gc.collect()
-        time.sleep(0.5)
+            self.update_status("Waking Llama 3.1 8B Architect...", 15)
+            time.sleep(1)
+            if self.abort_flag: raise Exception("User Aborted.")
+            
+            self.update_status("Architecting NPU Instructions...", 25)
+            # MOCK LOGIC: Invisible Hardcoded Negatives merged with your manual negatives
+            hardcoded_neg = "(worst quality, bad anatomy, deformed)"
+            final_neg = f"{hardcoded_neg}, {neg_text}" if neg_text else hardcoded_neg
+            time.sleep(1.5)
+            
+            self.update_status("Analysis Complete. Flushing LLM...", 35)
+            gc.collect()
+            time.sleep(0.5)
+            if self.abort_flag: raise Exception("User Aborted.")
 
-        self.update_status(f"NPU Waking... Loading Main Checkpoints", 50)
-        self.image_session = "Mock_SDXL_Loaded"
-        time.sleep(1)
-        
-        for i in range(60, 100, 10):
-            self.update_status(f"NPU Rendering Tensor Step {i//10}/10...", i)
-            time.sleep(0.5) 
-        
-        self.update_status("Process Complete. Flushing Memory...", 100)
-        self.image_session = None
-        gc.collect()
-        
-        Clock.schedule_once(lambda dt: completion_callback())
+            self.update_status(f"NPU Waking... Loading Checkpoints", 50)
+            time.sleep(1)
+            
+            # The Generation Loop (Where Aborting matters most)
+            for i in range(60, 100, 10):
+                if self.abort_flag: raise Exception("User Aborted.")
+                self.update_status(f"NPU Rendering Tensor Step {i//10}/10...", i)
+                time.sleep(0.5) 
+            
+            self.update_status("Process Complete. Flushing Memory...", 100)
+            gc.collect()
+            
+            Clock.schedule_once(lambda dt: completion_callback("mock_generated_image.png", success=True))
+            
+        except Exception as e:
+            self.update_status(f"ABORTED: {str(e)}", 0)
+            gc.collect() # Emergency Flush
+            Clock.schedule_once(lambda dt: completion_callback(None, success=False))
 
 # ==========================================
 # 3. BACKEND LOGIC (Downloads & Storage)
@@ -421,43 +618,48 @@ class BrainScreen(Screen):
 
 class GeneratorScreen(Screen):
     current_mode = StringProperty('generate')
+    is_generating = BooleanProperty(False)
+    panel_open = BooleanProperty(False)
     
-    # Track the active image paths in memory
     source_img_uri = StringProperty("")
     target_img_uri = StringProperty("")
     active_picker = StringProperty("")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Bind Kivy's Android activity listener to catch the gallery selection
         if platform == 'android':
             from android import activity
             activity.bind(on_activity_result=self.on_activity_result)
 
+    def toggle_advanced_panel(self):
+        # Animates the panel sliding in and out from the right side
+        panel = self.ids.advanced_panel
+        if self.panel_open:
+            anim = Animation(pos_hint={'x': 1, 'y': 0}, duration=0.25, t='out_quad')
+            self.panel_open = False
+        else:
+            anim = Animation(pos_hint={'x': 0.25, 'y': 0}, duration=0.25, t='out_quad')
+            self.panel_open = True
+        anim.start(panel)
+
     def switch_mode(self, mode):
         self.current_mode = mode
+        self.clear_all() 
+        
         upload_panel = self.ids.upload_panel
         prompt_input = self.ids.prompt_input
         btn_1 = self.ids.btn_upload_1
         btn_2 = self.ids.btn_upload_2
-
-        # Reset image paths when switching modes
-        self.source_img_uri = ""
-        self.target_img_uri = ""
-        btn_1.text = "Upload Source"
-        btn_1.background_color = (0.2, 0.2, 0.3, 1)
-        btn_2.text = "Upload Target"
-        btn_2.background_color = (0.2, 0.2, 0.3, 1)
 
         if mode == 'generate':
             upload_panel.height = "0dp"
             upload_panel.opacity = 0
             prompt_input.height = "120dp"
             prompt_input.opacity = 1
-            prompt_input.hint_text = "Describe your scene here (Unrestricted)..."
+            prompt_input.hint_text = "Describe your scene here (Master Positive)..."
             
         elif mode == 'swap':
-            upload_panel.height = "60dp"
+            upload_panel.height = "160dp" 
             upload_panel.opacity = 1
             btn_1.text = "Upload Source Face"
             btn_2.text = "Upload Target Body"
@@ -466,7 +668,7 @@ class GeneratorScreen(Screen):
             prompt_input.opacity = 0
             
         elif mode == 'edit':
-            upload_panel.height = "60dp"
+            upload_panel.height = "160dp"
             upload_panel.opacity = 1
             btn_1.text = "Upload Base Image"
             btn_2.opacity = 0 
@@ -481,20 +683,17 @@ class GeneratorScreen(Screen):
             Intent = autoclass('android.content.Intent')
             PythonActivity = autoclass('org.kivy.android.PythonActivity')
             
-            # Create intent strictly for image files
             intent = Intent(Intent.ACTION_GET_CONTENT)
             intent.setType("image/*")
             intent.addCategory(Intent.CATEGORY_OPENABLE)
             
-            # Fire the intent and wait for on_activity_result (Request Code 103)
             PythonActivity.mActivity.startActivityForResult(intent, 103)
         else:
             self.ids.gen_status.text = "Gallery access requires Android device."
 
     def on_activity_result(self, request_code, result_code, intent):
-        # 103 is our custom request code for the image picker
         if request_code == 103:
-            if result_code == -1 and intent is not None: # -1 means RESULT_OK in Android
+            if result_code == -1 and intent is not None: 
                 uri = intent.getDataString()
                 if uri:
                     Clock.schedule_once(lambda dt: self._update_image_button(uri))
@@ -502,41 +701,94 @@ class GeneratorScreen(Screen):
     def _update_image_button(self, uri):
         if self.active_picker == 'source':
             self.source_img_uri = uri
-            self.ids.btn_upload_1.text = "Face Loaded ✓"
-            self.ids.btn_upload_1.background_color = (0, 0.6, 0.3, 1) # Green for success
+            self.ids.source_thumb.source = uri
+            self.ids.source_thumb_container.opacity = 1
+            self.ids.btn_upload_1.background_color = (0, 0.4, 0.2, 1) 
         elif self.active_picker == 'target':
             self.target_img_uri = uri
-            self.ids.btn_upload_2.text = "Body Loaded ✓"
-            self.ids.btn_upload_2.background_color = (0, 0.6, 0.3, 1)
+            self.ids.target_thumb.source = uri
+            self.ids.target_thumb_container.opacity = 1
+            self.ids.btn_upload_2.background_color = (0, 0.4, 0.2, 1)
 
-    def start_generation(self):
+    def clear_thumbnail(self, thumb_type):
+        if thumb_type == 'source':
+            self.source_img_uri = ""
+            self.ids.source_thumb.source = ""
+            self.ids.source_thumb_container.opacity = 0
+            self.ids.btn_upload_1.background_color = (0.2, 0.2, 0.3, 1)
+        elif thumb_type == 'target':
+            self.target_img_uri = ""
+            self.ids.target_thumb.source = ""
+            self.ids.target_thumb_container.opacity = 0
+            self.ids.btn_upload_2.background_color = (0.2, 0.2, 0.3, 1)
+
+    def clear_output(self):
+        self.ids.output_image.source = ""
+        self.ids.output_overlays.opacity = 0
+        self.ids.output_overlays.disabled = True
+        self.ids.gen_status.text = "Awaiting Command..."
+
+    def clear_all(self):
+        self.clear_output()
+        self.clear_thumbnail('source')
+        self.clear_thumbnail('target')
+        self.ids.prompt_input.text = ""
+        self.ids.negative_input.text = ""
+        self.ids.gen_progress.opacity = 0
+        self.ids.gen_progress.value = 0
+        if self.panel_open:
+            self.toggle_advanced_panel()
+
+    def fullscreen_image(self, img_source):
+        if not img_source: return
+        view = ModalView(size_hint=(1, 1), background_color=[0, 0, 0, 1])
+        img = KivyImage(source=img_source, allow_stretch=True, keep_ratio=True)
+        view.add_widget(img)
+        view.bind(on_touch_down=view.dismiss) 
+        view.open()
+
+    def toggle_generation(self):
+        # THE ABORT KILL SWITCH LOGIC
+        app = App.get_running_app()
+        if self.is_generating:
+            # Send kill signal to the backend
+            app.ai_engine.abort_flag = True
+            self.ids.gen_btn.text = "ABORTING..."
+            self.ids.gen_btn.disabled = True
+            return
+
+        # Start Generation Logic
         prompt_text = self.ids.prompt_input.text
+        neg_text = self.ids.negative_input.text
         
-        # Validation checks
         if self.current_mode in ['generate', 'edit'] and not prompt_text.strip():
-            self.ids.gen_status.text = "Error: Text input required for this mode."
+            self.ids.gen_status.text = "Error: Text input required."
             self.ids.gen_status.color = (1, 0.3, 0.3, 1)
             return
             
         if self.current_mode == 'swap' and (not self.source_img_uri or not self.target_img_uri):
-            self.ids.gen_status.text = "Error: Both Face and Body images required."
+            self.ids.gen_status.text = "Error: Face and Body images required."
             self.ids.gen_status.color = (1, 0.3, 0.3, 1)
             return
 
-        self.ids.gen_btn.disabled = True
-        self.ids.gen_btn.text = "PROCESSING (NPU ENGAGED)..."
-        self.ids.gen_btn.background_color = (0.5, 0.1, 0.1, 1)
-        self.ids.save_btn.opacity = 0
-        self.ids.save_btn.disabled = True
+        # Lock UI and turn button into the Orange ABORT switch
+        self.is_generating = True
+        self.ids.gen_btn.text = "🛑 ABORT NPU PIPELINE"
+        self.ids.gen_btn.background_color = (0.9, 0.5, 0.1, 1) # Bright Orange
         self.ids.gen_progress.opacity = 1
         self.ids.gen_progress.value = 0
+        self.ids.output_overlays.opacity = 0
+        self.ids.output_overlays.disabled = True
         
-        app = App.get_running_app()
+        # Close advanced panel if open
+        if self.panel_open: self.toggle_advanced_panel()
+
         threading.Thread(
             target=app.ai_engine.process_request, 
             args=(
                 self.current_mode, 
                 prompt_text, 
+                neg_text,
                 self.source_img_uri, 
                 self.target_img_uri, 
                 self._on_generation_complete
@@ -544,15 +796,21 @@ class GeneratorScreen(Screen):
             daemon=True
         ).start()
 
-    def _on_generation_complete(self):
-        self.ids.gen_status.text = "Pipeline Complete."
-        self.ids.gen_status.color = (0, 1, 0, 1)
+    def _on_generation_complete(self, output_path, success):
+        self.is_generating = False
         self.ids.gen_btn.disabled = False
         self.ids.gen_btn.text = "ENGAGE NPU PIPELINE"
         self.ids.gen_btn.background_color = (0.8, 0.1, 0.1, 1)
-        self.ids.save_btn.opacity = 1
-        self.ids.save_btn.disabled = False
-        self.ids.gen_progress.opacity = 0
+        
+        if success and output_path:
+            self.ids.gen_status.text = "Generation Complete."
+            self.ids.gen_status.color = (0, 1, 0, 1)
+            self.ids.output_image.source = output_path
+            self.ids.output_overlays.opacity = 1
+            self.ids.output_overlays.disabled = False
+            self.ids.gen_progress.opacity = 0
+        else:
+            self.ids.gen_progress.opacity = 0
 
     def save_image(self):
         self.ids.gen_status.text = "Image Saved to Device Gallery."
