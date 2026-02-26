@@ -49,6 +49,8 @@ KV = '''
             font_size: '14sp'
             size_hint_y: None
             height: "30dp"
+            text_size: self.size
+            halign: 'center'
 
         ScrollView:
             do_scroll_x: False
@@ -147,7 +149,6 @@ KV = '''
                 size_hint_y: None
                 height: "50dp"
                 
-            # Image Container
             BoxLayout:
                 size_hint_y: None
                 height: "350dp"
@@ -169,7 +170,6 @@ KV = '''
                     allow_stretch: True
                     keep_ratio: True
             
-            # Dynamic Action Button (Hidden until image generates)
             Button:
                 id: save_btn
                 text: "SAVE TO DEVICE GALLERY"
@@ -191,12 +191,21 @@ KV = '''
                 height: "30dp"
                 bold: True
 
+            # ADDED: The Generation Progress Bar
+            ProgressBar:
+                id: gen_progress
+                max: 100
+                value: 0
+                size_hint_y: None
+                height: "15dp"
+                opacity: 0 
+
             TextInput:
                 id: prompt_input
                 hint_text: "Describe your scene here (Unrestricted)..."
                 multiline: True
                 size_hint_y: None
-                height: "140dp" # Expanded height since sliders are gone
+                height: "140dp" 
                 background_color: 0.15, 0.15, 0.2, 1
                 foreground_color: 0, 1, 1, 1
                 cursor_color: 0, 1, 1, 1
@@ -235,33 +244,28 @@ class UnrestrictedEngine:
         self.image_session = None
 
     def process_request(self, raw_text, completion_callback):
-        self.update_status("Allocating RAM: Waking Mistral-7B...")
+        self.update_status("Allocating RAM: Waking Mistral-7B...", 10)
         self.llm_session = "Mock_LLM_Loaded"
         time.sleep(1)
         
-        self.update_status("LLM Architecting Prompt & Parameters...")
+        self.update_status("LLM Architecting Prompt & Parameters...", 25)
         time.sleep(1.5)
         
-        # MOCK LLM INTELLIGENCE: The LLM decides the sliders invisibly
-        # If it senses a chaotic or gory scene, it cranks the strictness (CFG)
-        dynamic_cfg = 8.5 if "dying" in raw_text.lower() or "gore" in raw_text.lower() else 6.0
-        dynamic_blend = 95 if "face" in raw_text.lower() else 75
-        
-        master_prompt = f"(masterpiece, 8k), {raw_text}, highly detailed"
-        
-        self.update_status("LLM Analysis Complete. Flushing LLM from RAM...")
+        self.update_status("Analysis Complete. Flushing LLM from RAM...", 35)
         self.llm_session = None
         gc.collect()
         time.sleep(0.5)
 
-        self.update_status(f"NPU Waking... [Auto-CFG: {dynamic_cfg} | Auto-Blend: {dynamic_blend}%]")
+        self.update_status(f"NPU Waking... Loading SDXL Checkpoints", 50)
         self.image_session = "Mock_SDXL_Loaded"
         time.sleep(1)
         
-        self.update_status(f"Generating Image. Please wait...")
-        time.sleep(3) 
+        # Simulating the generation steps for the progress bar
+        for i in range(60, 100, 10):
+            self.update_status(f"NPU Rendering Step {i//10}/10...", i)
+            time.sleep(0.5) 
         
-        self.update_status("Image Complete. Flushing Generator from RAM...")
+        self.update_status("Image Complete. Flushing Generator from RAM...", 100)
         self.image_session = None
         gc.collect()
         
@@ -273,12 +277,25 @@ class UnrestrictedEngine:
 class BrainManagerLogic:
     def __init__(self, status_label):
         self.status_label = status_label
-        self.brain_path = "/sdcard/Download/NeoMind_Models/"
+        self.brain_path = self.get_safe_storage_path()
         try:
             if not os.path.exists(self.brain_path):
                 os.makedirs(self.brain_path)
         except Exception as e:
             self._update_status(f"Storage Error: {str(e)}")
+
+    def get_safe_storage_path(self):
+        """ Bypasses the 'Permission Denied' Scoped Storage error """
+        if platform == 'android':
+            from jnius import autoclass
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            context = PythonActivity.mActivity
+            # Points to the app's dedicated external partition on your 300GB drive
+            external_dir = context.getExternalFilesDir(None)
+            if external_dir:
+                return os.path.join(external_dir.getAbsolutePath(), "NeoMind_Models")
+        # Fallback for desktop testing
+        return os.path.join(os.path.expanduser("~"), "NeoMind_Models")
 
     def download_model(self, name, url, progress_callback):
         self._update_status(f"Connecting to {name}...")
@@ -341,7 +358,7 @@ class AssetCard(BoxLayout):
             app.brain_logic._update_status("Opening Device Storage...")
         except Exception as e:
             if app.brain_logic:
-                app.brain_logic._update_status("Sideload only works on Android Device")
+                app.brain_logic._update_status("Sideload only works on Android")
 
 # ==========================================
 # 5. APP & SCREEN ROUTING
@@ -357,7 +374,6 @@ class GeneratorScreen(Screen):
             self.ids.gen_status.color = (1, 0.3, 0.3, 1)
             return
 
-        # Lock the UI during generation
         self.ids.gen_btn.disabled = True
         self.ids.gen_btn.text = "PROCESSING (NPU ENGAGED)..."
         self.ids.gen_btn.background_color = (0.5, 0.1, 0.1, 1)
@@ -365,10 +381,13 @@ class GeneratorScreen(Screen):
         self.ids.save_btn.opacity = 0
         self.ids.save_btn.disabled = True
         
+        # Reveal and reset the Generation Progress Bar
+        self.ids.gen_progress.opacity = 1
+        self.ids.gen_progress.value = 0
+        
         app = App.get_running_app()
         threading.Thread(
             target=app.ai_engine.process_request, 
-            # Sliders are gone, we just pass the raw text to the engine
             args=(prompt_text, self._on_generation_complete), 
             daemon=True
         ).start()
@@ -383,6 +402,9 @@ class GeneratorScreen(Screen):
         
         self.ids.save_btn.opacity = 1
         self.ids.save_btn.disabled = False
+        
+        # Hide the progress bar
+        self.ids.gen_progress.opacity = 0
 
     def save_image(self):
         self.ids.gen_status.text = "Image Saved to Device Gallery."
@@ -416,9 +438,12 @@ class NeoMindApp(App):
         
         gen_screen = self.root.get_screen('generator')
         gen_status_lbl = gen_screen.ids.gen_status
+        gen_progress_bar = gen_screen.ids.gen_progress
         
-        def update_gen_ui(text):
+        def update_gen_ui(text, progress=None):
             Clock.schedule_once(lambda dt: setattr(gen_status_lbl, 'text', text))
+            if progress is not None:
+                Clock.schedule_once(lambda dt: setattr(gen_progress_bar, 'value', progress))
             
         self.ai_engine = UnrestrictedEngine(update_gen_ui)
 
