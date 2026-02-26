@@ -7,6 +7,7 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import StringProperty, NumericProperty
 from kivy.clock import Clock
+from kivy.utils import platform
 
 # ==========================================
 # 1. UI STYLING (Embedded KV String)
@@ -15,7 +16,7 @@ KV = '''
 <BrainScreen>:
     canvas.before:
         Color:
-            rgba: 0.05, 0.05, 0.1, 1 # Deep dark blue/Cyberpunk background
+            rgba: 0.05, 0.05, 0.1, 1 
         Rectangle:
             pos: self.pos
             size: self.size
@@ -29,7 +30,7 @@ KV = '''
             text: "NEOMIND: BRAIN MANAGEMENT"
             font_size: '24sp'
             bold: True
-            color: 0, 1, 1, 1 # Cyan Neon
+            color: 0, 1, 1, 1 
             size_hint_y: None
             height: "60dp"
 
@@ -49,7 +50,6 @@ KV = '''
                 height: self.minimum_height
                 spacing: "20dp"
 
-                # Your core No-Refusal assets
                 AssetCard:
                     asset_name: "Pony Diffusion V6 XL (Unrestricted)"
                 AssetCard:
@@ -136,17 +136,16 @@ KV = '''
 class BrainManagerLogic:
     def __init__(self, status_label):
         self.status_label = status_label
-        # Targeted directly at your iQOO Neo 10 internal storage
-        self.brain_path = "/sdcard/NeoMind/Models/"
+        # FIX: Moved to the public Download folder to bypass Android Scoped Storage restrictions
+        self.brain_path = "/sdcard/Download/NeoMind_Models/"
         try:
             if not os.path.exists(self.brain_path):
                 os.makedirs(self.brain_path)
         except Exception as e:
-            self._update_status(f"Storage Error: Check Permissions")
+            self._update_status(f"Storage Error: {str(e)}")
 
     def download_model(self, name, url, progress_callback):
         self._update_status(f"Connecting to {name}...")
-        # Uses threading so the UI doesn't freeze or "squash" during download
         threading.Thread(target=self._run_download, args=(name, url, progress_callback), daemon=True).start()
 
     def _run_download(self, name, url, progress_callback):
@@ -155,7 +154,6 @@ class BrainManagerLogic:
             total_size = int(response.headers.get('content-length', 0))
             bytes_downloaded = 0
             
-            # Formats the name to a valid filename
             safe_name = name.split(" ")[0] + ".safetensors"
             path = os.path.join(self.brain_path, safe_name)
             
@@ -166,7 +164,6 @@ class BrainManagerLogic:
                         bytes_downloaded += len(chunk)
                         if total_size > 0:
                             progress = (bytes_downloaded / total_size) * 100
-                            # Schedule Kivy UI updates on the main thread
                             Clock.schedule_once(lambda dt, p=progress: progress_callback(p))
             
             Clock.schedule_once(lambda dt: self._update_status(f"LOADED: {name}"))
@@ -185,7 +182,6 @@ class AssetCard(BoxLayout):
     progress = NumericProperty(0)
 
     def trigger_download(self):
-        # Placeholder HuggingFace link structure - we will update these later
         url = "https://huggingface.co/dummy_link_for_now" 
         app = App.get_running_app()
         if app.brain_logic:
@@ -195,7 +191,6 @@ class AssetCard(BoxLayout):
         self.progress = val
 
     def trigger_sideload(self):
-        # Native Android Picker call (Requires pyjnius in buildozer.spec)
         app = App.get_running_app()
         try:
             from jnius import autoclass
@@ -226,20 +221,22 @@ class NeoMindApp(App):
         self.title = "NeoMind Unrestricted Suite"
         self.brain_logic = None 
         
-        # Load the KV string layout
         Builder.load_string(KV)
         
-        # Setup Screen Manager
         sm = ScreenManager()
         sm.add_widget(BrainScreen(name='brain_mgmt'))
         sm.add_widget(GeneratorScreen(name='generator'))
         
-        # Initialize the backend logic after the UI is built
         Clock.schedule_once(self._init_logic)
         return sm
 
+    def on_start(self):
+        # FIX: Triggers the native Android permission pop-up on launch
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+            request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
+
     def _init_logic(self, dt):
-        # Find the status label in the BrainScreen to update it during downloads
         screen = self.root.get_screen('brain_mgmt')
         status_lbl = screen.ids.status_label
         self.brain_logic = BrainManagerLogic(status_lbl)
