@@ -6,26 +6,21 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
 
-# Critical Python Libraries
-requirements = python3, kivy==2.3.0, requests, urllib3, certifi
+# Added pyjnius for the Android Sideload File Picker
+requirements = python3, kivy==2.3.0, requests, certifi, urllib3, pyjnius
 
 orientation = portrait
-fullscreen = 0
 android.archs = arm64-v8a
 
-# Full permissions for the Brain folder
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
-android.manifest.largeHeap = True
+# Critical Permissions for your 300GB Dedicated Storage
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE
 
-# API versions required for NPU Hardware Acceleration
+# API limits adjusted to support ONNX NPU Acceleration
 android.api = 33
 android.minapi = 24
 android.ndk = 25b
 
-# Snapdragon ONNX integration
+# Hardware Acceleration via Gradle
 android.gradle_dependencies = com.microsoft.onnxruntime:onnxruntime-android:1.22.0
-
-# The Fixes: Forcing the correct Java wrapper
-p4a.branch = master
+android.manifest.largeHeap = True
 android.bootstrap = sdl2
-log_level = 2
