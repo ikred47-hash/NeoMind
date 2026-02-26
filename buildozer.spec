@@ -6,8 +6,8 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
 
-# THE FIX: Locked to 1.22.0 so Buildozer can successfully find the .zip source file
-requirements = python3, kivy==2.3.0, numpy==1.22.0, onnxruntime==1.17.0, tokenizers==0.15.2, requests, certifi, urllib3, pyjnius
+# THE FIX: Removed onnxruntime and tokenizers. Let Buildozer handle numpy natively.
+requirements = python3, kivy==2.3.0, numpy, requests, certifi, urllib3, pyjnius
 
 orientation = portrait
 android.archs = arm64-v8a
@@ -22,7 +22,7 @@ android.minapi = 24
 android.ndk = 25b
 android.enable_androidx = True
 
-# Java/Gradle bindings for hardware acceleration
+# THE REAL ENGINE: The pre-compiled Android C++ binaries 
 android.gradle_dependencies = com.microsoft.onnxruntime:onnxruntime-android:1.17.0
 android.manifest.largeHeap = True
 
