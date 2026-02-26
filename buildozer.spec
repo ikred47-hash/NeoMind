@@ -6,7 +6,7 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
 
-# FIXED: Version-locked requirements to prevent NumPy linker errors
+# Version-locked requirements to ensure stable compilation
 requirements = python3, kivy==2.3.0, numpy==1.26.4, onnxruntime==1.17.0, tokenizers==0.15.2, requests, certifi, urllib3, pyjnius
 
 orientation = portrait
@@ -25,4 +25,6 @@ android.enable_androidx = True
 # Java/Gradle bindings for hardware acceleration
 android.gradle_dependencies = com.microsoft.onnxruntime:onnxruntime-android:1.17.0
 android.manifest.largeHeap = True
-android.bootstrap = sdl2
+
+# Updated bootstrap token
+p4a.bootstrap = sdl2
