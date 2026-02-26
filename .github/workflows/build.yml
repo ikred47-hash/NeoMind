@@ -23,11 +23,6 @@ jobs:
           rustup target add aarch64-linux-android
           pip3 install --user --upgrade "Cython<3.0.0" virtualenv buildozer
 
-      - name: Clean Previous Build Cache
-        run: |
-          export PATH=$PATH:$HOME/.local/bin
-          buildozer android clean
-
       - name: Build APK with Buildozer
         run: |
           export PATH=$PATH:$HOME/.local/bin
