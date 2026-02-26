@@ -33,7 +33,7 @@ KV = '''
         spacing: "15dp"
 
         Label:
-            text: "NEOMIND: BRAIN MANAGEMENT"
+            text: "NEOMIND: NEURAL VAULT"
             font_size: '22sp'
             bold: True
             color: 0, 1, 1, 1 
@@ -62,12 +62,17 @@ KV = '''
                 spacing: "20dp"
                 padding: [0, 10, 0, 10]
 
+                # The Absolute Peak Asset Roster
                 AssetCard:
-                    asset_name: "Pony Diffusion V6 XL (Generator)"
+                    asset_name: "Llama 3.1 8B (Prompt Architect)"
                 AssetCard:
-                    asset_name: "IP-Adapter FaceID (Blender)"
+                    asset_name: "Pony Diffusion V6 XL (Unrestricted)"
                 AssetCard:
-                    asset_name: "Mistral-7B (Local Architect)"
+                    asset_name: "FLUX.1 Quantized (Experimental SOTA)"
+                AssetCard:
+                    asset_name: "IP-Adapter FaceID (Neural Blender)"
+                AssetCard:
+                    asset_name: "CodeFormer (4K Texture Restorer)"
 
         Button:
             text: "ENTER NEURAL TERMINAL"
@@ -141,14 +146,38 @@ KV = '''
             size_hint_y: None
             height: self.minimum_height 
             
-            Label:
-                text: "UNRESTRICTED TERMINAL"
-                font_size: '22sp'
-                bold: True
-                color: 0, 1, 1, 1
+            # --- THE DYNAMIC MODE SELECTOR ---
+            BoxLayout:
                 size_hint_y: None
                 height: "50dp"
+                spacing: "5dp"
                 
+                ToggleButton:
+                    text: "GENERATE"
+                    group: "mode"
+                    state: "down"
+                    background_normal: ''
+                    background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.1, 0.1, 0.15, 1)
+                    bold: True
+                    on_release: root.switch_mode('generate')
+                    
+                ToggleButton:
+                    text: "FACE SWAP"
+                    group: "mode"
+                    background_normal: ''
+                    background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.1, 0.1, 0.15, 1)
+                    bold: True
+                    on_release: root.switch_mode('swap')
+                    
+                ToggleButton:
+                    text: "AI EDIT"
+                    group: "mode"
+                    background_normal: ''
+                    background_color: (0, 0.5, 0.5, 1) if self.state == 'down' else (0.1, 0.1, 0.15, 1)
+                    bold: True
+                    on_release: root.switch_mode('edit')
+
+            # Image Display Area
             BoxLayout:
                 size_hint_y: None
                 height: "350dp"
@@ -191,7 +220,6 @@ KV = '''
                 height: "30dp"
                 bold: True
 
-            # ADDED: The Generation Progress Bar
             ProgressBar:
                 id: gen_progress
                 max: 100
@@ -200,12 +228,38 @@ KV = '''
                 height: "15dp"
                 opacity: 0 
 
+            # --- DYNAMIC INPUT PANELS ---
+            
+            # Panel for Face Swap & Edit Image Selection
+            BoxLayout:
+                id: upload_panel
+                orientation: 'horizontal'
+                size_hint_y: None
+                height: "0dp" 
+                opacity: 0
+                spacing: "10dp"
+                
+                Button:
+                    id: btn_upload_1
+                    text: "Upload Source"
+                    background_normal: ''
+                    background_color: 0.2, 0.2, 0.3, 1
+                    on_release: root.open_gallery('source')
+                    
+                Button:
+                    id: btn_upload_2
+                    text: "Upload Target"
+                    background_normal: ''
+                    background_color: 0.2, 0.2, 0.3, 1
+                    on_release: root.open_gallery('target')
+
+            # Text Input Panel
             TextInput:
                 id: prompt_input
-                hint_text: "Describe your scene here (Unrestricted)..."
+                hint_text: "Describe your scene here..."
                 multiline: True
                 size_hint_y: None
-                height: "140dp" 
+                height: "120dp" 
                 background_color: 0.15, 0.15, 0.2, 1
                 foreground_color: 0, 1, 1, 1
                 cursor_color: 0, 1, 1, 1
@@ -225,7 +279,7 @@ KV = '''
                 on_release: root.start_generation()
 
             Button:
-                text: "BACK TO BRAIN MANAGEMENT"
+                text: "ACCESS NEURAL VAULT"
                 size_hint_y: None
                 height: "50dp"
                 background_normal: ''
@@ -243,12 +297,15 @@ class UnrestrictedEngine:
         self.llm_session = None
         self.image_session = None
 
-    def process_request(self, raw_text, completion_callback):
-        self.update_status("Allocating RAM: Waking Mistral-7B...", 10)
+    def process_request(self, current_mode, raw_text, source_img, target_img, completion_callback):
+        self.update_status(f"Pipeline Initiated: {current_mode.upper()} MODE", 5)
+        time.sleep(1)
+
+        self.update_status("Allocating RAM: Waking Llama 3.1 8B...", 15)
         self.llm_session = "Mock_LLM_Loaded"
         time.sleep(1)
         
-        self.update_status("LLM Architecting Prompt & Parameters...", 25)
+        self.update_status("LLM Architecting NPU Instructions...", 25)
         time.sleep(1.5)
         
         self.update_status("Analysis Complete. Flushing LLM from RAM...", 35)
@@ -256,16 +313,15 @@ class UnrestrictedEngine:
         gc.collect()
         time.sleep(0.5)
 
-        self.update_status(f"NPU Waking... Loading SDXL Checkpoints", 50)
+        self.update_status(f"NPU Waking... Loading Main Checkpoints", 50)
         self.image_session = "Mock_SDXL_Loaded"
         time.sleep(1)
         
-        # Simulating the generation steps for the progress bar
         for i in range(60, 100, 10):
-            self.update_status(f"NPU Rendering Step {i//10}/10...", i)
+            self.update_status(f"NPU Rendering Tensor Step {i//10}/10...", i)
             time.sleep(0.5) 
         
-        self.update_status("Image Complete. Flushing Generator from RAM...", 100)
+        self.update_status("Process Complete. Flushing Memory...", 100)
         self.image_session = None
         gc.collect()
         
@@ -285,16 +341,13 @@ class BrainManagerLogic:
             self._update_status(f"Storage Error: {str(e)}")
 
     def get_safe_storage_path(self):
-        """ Bypasses the 'Permission Denied' Scoped Storage error """
         if platform == 'android':
             from jnius import autoclass
             PythonActivity = autoclass('org.kivy.android.PythonActivity')
             context = PythonActivity.mActivity
-            # Points to the app's dedicated external partition on your 300GB drive
             external_dir = context.getExternalFilesDir(None)
             if external_dir:
                 return os.path.join(external_dir.getAbsolutePath(), "NeoMind_Models")
-        # Fallback for desktop testing
         return os.path.join(os.path.expanduser("~"), "NeoMind_Models")
 
     def download_model(self, name, url, progress_callback):
@@ -367,43 +420,138 @@ class BrainScreen(Screen):
     pass
 
 class GeneratorScreen(Screen):
+    current_mode = StringProperty('generate')
+    
+    # Track the active image paths in memory
+    source_img_uri = StringProperty("")
+    target_img_uri = StringProperty("")
+    active_picker = StringProperty("")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Bind Kivy's Android activity listener to catch the gallery selection
+        if platform == 'android':
+            from android import activity
+            activity.bind(on_activity_result=self.on_activity_result)
+
+    def switch_mode(self, mode):
+        self.current_mode = mode
+        upload_panel = self.ids.upload_panel
+        prompt_input = self.ids.prompt_input
+        btn_1 = self.ids.btn_upload_1
+        btn_2 = self.ids.btn_upload_2
+
+        # Reset image paths when switching modes
+        self.source_img_uri = ""
+        self.target_img_uri = ""
+        btn_1.text = "Upload Source"
+        btn_1.background_color = (0.2, 0.2, 0.3, 1)
+        btn_2.text = "Upload Target"
+        btn_2.background_color = (0.2, 0.2, 0.3, 1)
+
+        if mode == 'generate':
+            upload_panel.height = "0dp"
+            upload_panel.opacity = 0
+            prompt_input.height = "120dp"
+            prompt_input.opacity = 1
+            prompt_input.hint_text = "Describe your scene here (Unrestricted)..."
+            
+        elif mode == 'swap':
+            upload_panel.height = "60dp"
+            upload_panel.opacity = 1
+            btn_1.text = "Upload Source Face"
+            btn_2.text = "Upload Target Body"
+            btn_2.opacity = 1
+            prompt_input.height = "0dp" 
+            prompt_input.opacity = 0
+            
+        elif mode == 'edit':
+            upload_panel.height = "60dp"
+            upload_panel.opacity = 1
+            btn_1.text = "Upload Base Image"
+            btn_2.opacity = 0 
+            prompt_input.height = "80dp"
+            prompt_input.opacity = 1
+            prompt_input.hint_text = "What do you want to change? (e.g., make the armor black)"
+
+    def open_gallery(self, picker_type):
+        self.active_picker = picker_type
+        if platform == 'android':
+            from jnius import autoclass
+            Intent = autoclass('android.content.Intent')
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            
+            # Create intent strictly for image files
+            intent = Intent(Intent.ACTION_GET_CONTENT)
+            intent.setType("image/*")
+            intent.addCategory(Intent.CATEGORY_OPENABLE)
+            
+            # Fire the intent and wait for on_activity_result (Request Code 103)
+            PythonActivity.mActivity.startActivityForResult(intent, 103)
+        else:
+            self.ids.gen_status.text = "Gallery access requires Android device."
+
+    def on_activity_result(self, request_code, result_code, intent):
+        # 103 is our custom request code for the image picker
+        if request_code == 103:
+            if result_code == -1 and intent is not None: # -1 means RESULT_OK in Android
+                uri = intent.getDataString()
+                if uri:
+                    Clock.schedule_once(lambda dt: self._update_image_button(uri))
+
+    def _update_image_button(self, uri):
+        if self.active_picker == 'source':
+            self.source_img_uri = uri
+            self.ids.btn_upload_1.text = "Face Loaded ✓"
+            self.ids.btn_upload_1.background_color = (0, 0.6, 0.3, 1) # Green for success
+        elif self.active_picker == 'target':
+            self.target_img_uri = uri
+            self.ids.btn_upload_2.text = "Body Loaded ✓"
+            self.ids.btn_upload_2.background_color = (0, 0.6, 0.3, 1)
+
     def start_generation(self):
         prompt_text = self.ids.prompt_input.text
-        if not prompt_text.strip():
-            self.ids.gen_status.text = "Error: Please describe a scene first."
+        
+        # Validation checks
+        if self.current_mode in ['generate', 'edit'] and not prompt_text.strip():
+            self.ids.gen_status.text = "Error: Text input required for this mode."
+            self.ids.gen_status.color = (1, 0.3, 0.3, 1)
+            return
+            
+        if self.current_mode == 'swap' and (not self.source_img_uri or not self.target_img_uri):
+            self.ids.gen_status.text = "Error: Both Face and Body images required."
             self.ids.gen_status.color = (1, 0.3, 0.3, 1)
             return
 
         self.ids.gen_btn.disabled = True
         self.ids.gen_btn.text = "PROCESSING (NPU ENGAGED)..."
         self.ids.gen_btn.background_color = (0.5, 0.1, 0.1, 1)
-        
         self.ids.save_btn.opacity = 0
         self.ids.save_btn.disabled = True
-        
-        # Reveal and reset the Generation Progress Bar
         self.ids.gen_progress.opacity = 1
         self.ids.gen_progress.value = 0
         
         app = App.get_running_app()
         threading.Thread(
             target=app.ai_engine.process_request, 
-            args=(prompt_text, self._on_generation_complete), 
+            args=(
+                self.current_mode, 
+                prompt_text, 
+                self.source_img_uri, 
+                self.target_img_uri, 
+                self._on_generation_complete
+            ), 
             daemon=True
         ).start()
 
     def _on_generation_complete(self):
-        self.ids.gen_status.text = "Generation Complete."
+        self.ids.gen_status.text = "Pipeline Complete."
         self.ids.gen_status.color = (0, 1, 0, 1)
-        
         self.ids.gen_btn.disabled = False
         self.ids.gen_btn.text = "ENGAGE NPU PIPELINE"
         self.ids.gen_btn.background_color = (0.8, 0.1, 0.1, 1)
-        
         self.ids.save_btn.opacity = 1
         self.ids.save_btn.disabled = False
-        
-        # Hide the progress bar
         self.ids.gen_progress.opacity = 0
 
     def save_image(self):
@@ -433,7 +581,6 @@ class NeoMindApp(App):
     def _init_logic(self, dt):
         screen = self.root.get_screen('brain_mgmt')
         status_lbl = screen.ids.status_label
-        
         self.brain_logic = BrainManagerLogic(status_lbl)
         
         gen_screen = self.root.get_screen('generator')
