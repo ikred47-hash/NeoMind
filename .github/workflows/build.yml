@@ -1,4 +1,4 @@
-name: NeoMind Fresh Engine Build
+name: NeoMind Fast Engine Build
 on:
   push:
     branches: [ main ]
@@ -19,8 +19,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev cargo rustc
-          rustup target add aarch64-linux-android
+          sudo apt install -y git zip unzip python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
           pip3 install --user --upgrade "Cython<3.0.0" virtualenv buildozer
 
       - name: Build APK with Buildozer
@@ -29,8 +28,6 @@ jobs:
           yes | buildozer android debug
         env:
           ACCEPT_SDK_LICENSE: "yes"
-          # THE FIX: Disable Intel Vector Math so it compiles for Snapdragon ARM64
-          NPY_DISABLE_SVML: "1"
 
       - name: Upload Finished APK
         uses: actions/upload-artifact@v4
